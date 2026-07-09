@@ -211,7 +211,6 @@ def generate_index(table: dict):
             "weapon_pools": weapon_pools,
             "banner_char_images": banner_char_count,
             "banner_weapon_images": banner_weapon_count,
-            "rotate_images": rotate_count,
             "char_portraits": char_portrait_count,
             "weapon_portraits": weapon_portrait_count,
         },
