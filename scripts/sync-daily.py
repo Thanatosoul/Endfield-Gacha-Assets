@@ -27,8 +27,9 @@ WEAPON_PORTRAIT_DIR = PUBLIC_IMG_DIR / "weapon"
 BANNER_CHAR_DIR = PUBLIC_IMG_DIR / "banner" / "char"
 BANNER_WEAPON_DIR = PUBLIC_IMG_DIR / "banner" / "weapon"
 
-CHAR_PORTRAIT_REMOTE = "https://www.akedata.top/public/images/character/charremoteicon"
-WEAPON_PORTRAIT_REMOTE = "https://www.akedata.top/public/images/weapon/icon"
+CHAR_PORTRAIT_REMOTE = "https://www.akedata.wiki/public/images/character/charremoteicon"
+WEAPON_PORTRAIT_REMOTE = "https://www.akedata.wiki/public/images/weapon/icon"
+WEAPON_PORTRAIT_LARGE_REMOTE = "https://www.akedata.wiki/public/images/weapon/iconbig"
 
 TIMEOUT = 30.0
 MAX_CONCURRENCY = 5
@@ -207,6 +208,9 @@ def sync_missing_portraits(client: httpx.Client, table: dict):
         target = WEAPON_PORTRAIT_DIR / f"{item_id}.png"
         try:
             resp = client.get(url, follow_redirects=True, timeout=TIMEOUT)
+            if resp.status_code == 404:
+                url = f"{WEAPON_PORTRAIT_LARGE_REMOTE}/{item_id}.png"
+                resp = client.get(url, follow_redirects=True, timeout=TIMEOUT)
             if resp.status_code == 200:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(resp.content)
