@@ -1,6 +1,6 @@
 {
   "version": "20260716",
-  "updated_at": "2026-07-16T08:25:54.897494+00:00",
+  "updated_at": "2026-07-16T08:35:21.433971+00:00",
   "stats": {
     "total_pools": 26,
     "char_pools": 10,
@@ -8,6 +8,6 @@
     "banner_char_images": 11,
     "banner_weapon_images": 16,
     "char_portraits": 28,
-    "weapon_portraits": 62
+    "weapon_portraits": 63
   }
 }
