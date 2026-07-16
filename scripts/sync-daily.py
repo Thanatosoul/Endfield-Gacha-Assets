@@ -6,7 +6,7 @@
 # 4. 合并到 GachaPoolTable.json
 # 5. 检测缺失肖像
 
-import json, os, sys, hashlib, shutil, tempfile
+import json, os, re, sys, hashlib, shutil, tempfile
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -33,6 +33,8 @@ WEAPON_PORTRAIT_REMOTE = "https://www.akedata.top/public/images/weapon/icon"
 TIMEOUT = 30.0
 MAX_CONCURRENCY = 5
 ALLOWED_CHAR_POOL_TYPES = {"Special", "Joint", "0", 0}
+CANDIDATE_POOL_TYPES = ("special", "weponbox")
+CANDIDATE_POOL_COUNT = 3
 
 
 # ─── TableCfg 同步 ────────────────────────────────────────────────
@@ -47,9 +49,12 @@ def sync_tablecfg(client: httpx.Client) -> bool:
             resp = client.get(url, follow_redirects=True, timeout=TIMEOUT)
             resp.raise_for_status()
             json.loads(resp.text)
-            target.write_text(resp.text, encoding="utf-8")
-            print(f"  [TableCfg] {filename} updated")
-            changed = True
+            if not target.exists() or target.read_text(encoding="utf-8") != resp.text:
+                target.write_text(resp.text, encoding="utf-8")
+                print(f"  [TableCfg] {filename} updated")
+                changed = True
+            else:
+                print(f"  [TableCfg] {filename} unchanged")
         except Exception as e:
             print(f"  [TableCfg] {filename} sync failed: {e}")
             if target.exists():
@@ -80,6 +85,32 @@ def collect_pool_ids(char_table: dict, weapon_table: dict) -> list[str]:
         if pool_id not in pool_ids:
             pool_ids.append(pool_id)
     return pool_ids
+
+
+def collect_candidate_pool_ids(known_pool_ids: list[str]) -> list[str]:
+    pool_versions = []
+    for pool_id in known_pool_ids:
+        match = re.fullmatch(r"(?:special|weponbox)_(\d+)_(\d+)_(\d+)", pool_id)
+        if match:
+            pool_versions.append(tuple(map(int, match.groups())))
+
+    if not pool_versions:
+        return []
+
+    major, minor, slot = max(pool_versions)
+    candidate_versions = []
+    for _ in range(CANDIDATE_POOL_COUNT):
+        slot += 1
+        if slot > 3:
+            minor += 1
+            slot = 1
+        candidate_versions.append((major, minor, slot))
+
+    return [
+        f"{pool_type}_{candidate_major}_{candidate_minor}_{candidate_slot}"
+        for candidate_major, candidate_minor, candidate_slot in candidate_versions
+        for pool_type in CANDIDATE_POOL_TYPES
+    ]
 
 
 # ─── 从官方 API 获取单个池内容 ────────────────────────────────────
@@ -231,16 +262,22 @@ def main():
     # 同步 TableCfg
     print("\n[1/5] 同步 TableCfg...")
     with httpx.Client() as client:
-        sync_tablecfg(client)
+        tablecfg_changed = sync_tablecfg(client)
 
     # 读取本地 TableCfg
     print("\n[2/5] 读取 TableCfg...")
     char_table, weapon_table = load_tablecfg()
     pool_ids = collect_pool_ids(char_table, weapon_table)
-    print(f"  共收集到 {len(pool_ids)} 个 pool_id")
+    tablecfg_pool_count = len(pool_ids)
 
     # 加载现有历史池表
     historical = load_historical_table()
+
+    # TableCfg 镜像可能晚于官方 API；仅探测最高池之后的三个常见卡池 ID 作为兜底。
+    candidate_pool_ids = collect_candidate_pool_ids(pool_ids + list(historical))
+    pool_ids.extend(pool_id for pool_id in candidate_pool_ids if pool_id not in pool_ids)
+    print(f"  TableCfg: {tablecfg_pool_count} 个 pool_id")
+    print(f"  官方 API 候选探测: {len(candidate_pool_ids)} 个 pool_id")
 
     # 遍历 pool_id 采集数据
     print("\n[3/5] 采集卡池数据...")
@@ -278,15 +315,21 @@ def main():
 
     # 保存合并后的数据
     print("\n[4/5] 保存数据...")
-    save_historical_table(historical)
+    if new_count:
+        save_historical_table(historical)
+    else:
+        print("  卡池数据未变化")
 
     # 检测并下载缺失肖像
     print("\n[5/5] 同步肖像...")
     with httpx.Client() as client:
-        sync_missing_portraits(client, historical)
+        portrait_count = sync_missing_portraits(client, historical)
 
-    # 生成索引（肖像文件已更新时包含最新计数）
-    generate_index(historical)
+    # 只在数据或资源发生变化时更新时间戳，避免每日产生无意义的提交。
+    if tablecfg_changed or new_count or portrait_count:
+        generate_index(historical)
+    else:
+        print("\n  [Index] 无数据变化，未更新")
 
     print("\n" + "=" * 50)
     print("同步完成")

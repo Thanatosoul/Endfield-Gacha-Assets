@@ -34,5 +34,20 @@ jobs:
             echo "No changes to commit"
             exit 0
           fi
-          git commit -m "chore: daily sync $(date +%Y%m%d)"
+          changed_files="$(git diff --staged --name-only)"
+          changes=()
+          if grep -q '^raw/TableCfg/' <<< "$changed_files"; then
+            changes+=("更新 TableCfg")
+          fi
+          if grep -q '^public/data/GachaPoolTable\.json$' <<< "$changed_files"; then
+            changes+=("发现新池")
+          fi
+          if grep -q '^public/images/' <<< "$changed_files"; then
+            changes+=("同步资源")
+          fi
+          if [ ${#changes[@]} -eq 0 ]; then
+            changes=("更新同步脚本")
+          fi
+          message="$(IFS='，'; echo "${changes[*]}")"
+          git commit -m "chore: ${message} ($(date +%Y%m%d))"
           git push
