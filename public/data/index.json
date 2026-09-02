@@ -1,13 +1,13 @@
 {
-  "version": "20260901",
-  "updated_at": "2026-09-01T09:19:08.888564+00:00",
+  "version": "20260902",
+  "updated_at": "2026-09-02T08:40:51.649314+00:00",
   "stats": {
-    "total_pools": 28,
-    "char_pools": 11,
-    "weapon_pools": 17,
-    "banner_char_images": 12,
-    "banner_weapon_images": 17,
-    "char_portraits": 29,
-    "weapon_portraits": 64
+    "total_pools": 30,
+    "char_pools": 12,
+    "weapon_pools": 18,
+    "banner_char_images": 13,
+    "banner_weapon_images": 18,
+    "char_portraits": 30,
+    "weapon_portraits": 65
   }
 }
