@@ -112,7 +112,8 @@
       "艾尔黛拉的信物",
       "骏卫的信物"
     ],
-    "hard_guarantee_char_list": []
+    "hard_guarantee_char_list": [],
+    "pool_kind": "joint"
   },
   "special_1_0_1": {
     "pool_gacha_type": "char",
@@ -251,7 +252,8 @@
         "name": "伊冯",
         "times": 5
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "special_1_0_2": {
     "pool_gacha_type": "char",
@@ -390,7 +392,8 @@
         "name": "莱万汀",
         "times": 1
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "special_1_0_3": {
     "pool_gacha_type": "char",
@@ -529,7 +532,8 @@
         "name": "莱万汀",
         "times": 2
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "special_1_1_1": {
     "pool_gacha_type": "char",
@@ -671,7 +675,8 @@
         "times": 1,
         "image": "https://web.hycdn.cn/upload/image/20260312/d75a95c66e90685c0fac1d3069f49003.png"
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "special_1_1_2": {
     "pool_gacha_type": "char",
@@ -813,7 +818,8 @@
         "times": 1,
         "image": "https://web.hycdn.cn/upload/image/20260312/fa4853e8107217b54bce31d16c7d0064.png"
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "special_1_2_1": {
     "pool_gacha_type": "char",
@@ -955,7 +961,8 @@
         "times": 1,
         "image": "https://web.hycdn.cn/upload/image/20260312/68a49490bbb4997a8c57bb5f745c06d5.png"
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "special_1_3_1": {
     "pool_gacha_type": "char",
@@ -1097,7 +1104,8 @@
         "times": 1,
         "image": "https://web.hycdn.cn/upload/image/20260327/b4263c39832bb0540e61d88b8ce8ce66.png"
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "special_1_3_2": {
     "pool_gacha_type": "char",
@@ -1239,7 +1247,8 @@
         "times": 1,
         "image": "https://web.hycdn.cn/upload/image/20260416/6eb2765c98e97a3cdb1a9d260e0c5c41.png"
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "weaponbox_constant_1": {
     "pool_gacha_type": "weapon",
@@ -1505,7 +1514,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weaponbox_constant_2": {
     "pool_gacha_type": "weapon",
@@ -1771,7 +1781,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weaponbox_constant_3": {
     "pool_gacha_type": "weapon",
@@ -2037,7 +2048,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weaponbox_constant_4": {
     "pool_gacha_type": "weapon",
@@ -2303,7 +2315,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weaponbox_constant_5": {
     "pool_gacha_type": "weapon",
@@ -2569,7 +2582,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_0_1": {
     "pool_gacha_type": "weapon",
@@ -2835,7 +2849,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_0_2": {
     "pool_gacha_type": "weapon",
@@ -3101,7 +3116,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_0_3": {
     "pool_gacha_type": "weapon",
@@ -3367,7 +3383,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_1_1": {
     "pool_gacha_type": "weapon",
@@ -3633,7 +3650,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_1_2": {
     "pool_gacha_type": "weapon",
@@ -3899,7 +3917,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_2_1": {
     "pool_gacha_type": "weapon",
@@ -4165,7 +4184,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_2_2": {
     "pool_gacha_type": "weapon",
@@ -4431,7 +4451,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_2_3": {
     "pool_gacha_type": "weapon",
@@ -4697,7 +4718,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_3_1": {
     "pool_gacha_type": "weapon",
@@ -4963,7 +4985,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "weponbox_1_3_2": {
     "pool_gacha_type": "weapon",
@@ -5229,7 +5252,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "special_1_4_1": {
     "pool_gacha_type": "char",
@@ -5371,7 +5395,8 @@
         "times": 1,
         "image": "https://web.hycdn.cn/upload/image/20260604/3419313881488ad8715318a212d56cdb.png"
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "weponbox_1_4_1": {
     "pool_gacha_type": "weapon",
@@ -5637,7 +5662,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "special_1_4_2": {
     "pool_gacha_type": "char",
@@ -5779,7 +5805,8 @@
         "times": 1,
         "image": "https://web.hycdn.cn/upload/image/20260625/f250a27962d3fdfe3b91333d03434549.png"
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "weponbox_1_4_2": {
     "pool_gacha_type": "weapon",
@@ -6045,7 +6072,8 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   },
   "special_1_5_1": {
     "pool_gacha_type": "char",
@@ -6189,7 +6217,8 @@
         "times": 1,
         "image": "https://web.hycdn.cn/upload/image/20260715/7d5026b1c0dbeeb8b1e305eb8003bae5.png"
       }
-    ]
+    ],
+    "pool_kind": "special"
   },
   "weponbox_1_5_1": {
     "pool_gacha_type": "weapon",
@@ -6458,6 +6487,7 @@
         "rarity": 4,
         "type": 3
       }
-    ]
+    ],
+    "pool_kind": "weapon"
   }
 }

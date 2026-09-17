@@ -32,9 +32,30 @@ WEAPON_PORTRAIT_REMOTE = "https://data.akedata.wiki/public/images/assets/beyond/
 
 TIMEOUT = 30.0
 MAX_CONCURRENCY = 5
-ALLOWED_CHAR_POOL_TYPES = {"Special", "Joint", "0", 0}
+ALLOWED_CHAR_POOL_TYPES = {"Special", "Joint", "Rerun", "0", 0}
 CANDIDATE_POOL_TYPES = ("special", "weponbox")
 CANDIDATE_POOL_COUNT = 3
+
+
+def pool_kind_for(pool_id: str, pool_data: dict, char_table: dict, weapon_table: dict) -> str:
+    """Persist product-facing pool categories alongside the raw API type."""
+    if pool_id in weapon_table or pool_data.get("pool_gacha_type") == "weapon":
+        return "weapon"
+
+    configured_type = str(char_table.get(pool_id, {}).get("type", "")).lower()
+    if configured_type in {"beginner", "standard", "special", "joint", "rerun"}:
+        return configured_type
+
+    pool_id_lower = pool_id.lower()
+    if "rerun" in pool_id_lower or "reprint" in pool_id_lower:
+        return "rerun"
+    if pool_id_lower.startswith("joint") or pool_data.get("pool_type") == "extra":
+        return "joint"
+    if pool_id_lower == "beginner" or pool_id_lower.startswith("beginner"):
+        return "beginner"
+    if pool_id_lower == "standard" or pool_id_lower.startswith("standard"):
+        return "standard"
+    return "special"
 
 
 # ─── TableCfg 同步 ────────────────────────────────────────────────
@@ -272,6 +293,12 @@ def main():
 
     # 加载现有历史池表
     historical = load_historical_table()
+    pool_kind_changed = False
+    for pool_id, pool_data in historical.items():
+        pool_kind = pool_kind_for(pool_id, pool_data, char_table, weapon_table)
+        if pool_data.get("pool_kind") != pool_kind:
+            pool_data["pool_kind"] = pool_kind
+            pool_kind_changed = True
 
     # TableCfg 镜像可能晚于官方 API；仅探测最高池之后的三个常见卡池 ID 作为兜底。
     candidate_pool_ids = collect_candidate_pool_ids(pool_ids + list(historical))
@@ -294,6 +321,10 @@ def main():
             # 尝试官方 API
             pool_data = fetch_content_api(client, pool_id)
             if pool_data:
+                pool_kind = pool_kind_for(pool_id, pool_data, char_table, weapon_table)
+                if historical.get(pool_id, {}).get("pool_kind") != pool_kind:
+                    pool_kind_changed = True
+                pool_data["pool_kind"] = pool_kind
                 historical[pool_id] = pool_data
                 new_count += 1
                 print(f"  [API] {pool_id}: {pool_data.get('pool_name', '')}")
@@ -315,7 +346,7 @@ def main():
 
     # 保存合并后的数据
     print("\n[4/5] 保存数据...")
-    if new_count:
+    if new_count or pool_kind_changed:
         save_historical_table(historical)
     else:
         print("  卡池数据未变化")
