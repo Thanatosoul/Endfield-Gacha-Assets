@@ -30,6 +30,13 @@ BANNER_WEAPON_DIR = PUBLIC_IMG_DIR / "banner" / "weapon"
 CHAR_PORTRAIT_REMOTE = "https://data.akedata.wiki/public/images/assets/beyond/dynamicassets/gameplay/ui/sprites/charremoteicon"
 WEAPON_PORTRAIT_REMOTE = "https://data.akedata.wiki/public/images/assets/beyond/dynamicassets/gameplay/ui/sprites/itemiconbig"
 
+# 第三方镜像：官方 content 接口对部分卡池（如联合池）不返回图片时作为后备来源。
+IVAQAIS_BANNER_REMOTE = "https://raw.githubusercontent.com/ivaqis/arknights-tracker/main/arknights-tracker/static/images/banners/icon"
+CEP_BANNER_REMOTE = "https://raw.githubusercontent.com/cmyyx/cep/main/public/images/banners"
+CEP_BANNER_SLUGS = {"joint_1_2_2": "huiguagnqingdian"}
+CEP_CHARACTER_PORTRAIT_REMOTE = "https://raw.githubusercontent.com/cmyyx/cep/main/public/images/characters"
+CEP_WEAPON_PORTRAIT_REMOTE = "https://raw.githubusercontent.com/cmyyx/cep/main/public/images/weapon"
+
 TIMEOUT = 30.0
 MAX_CONCURRENCY = 5
 ALLOWED_CHAR_POOL_TYPES = {"Special", "Joint", "Rerun", "0", 0}
@@ -186,6 +193,18 @@ def save_historical_table(table: dict):
     )
 
 
+# ─── 图片后备源 ──────────────────────────────────────────────────
+
+def banner_fallback_urls(pool_id: str) -> list[str]:
+    """第三方横幅镜像：官方无图时按顺序尝试。"""
+    urls: list[str] = []
+    slug = CEP_BANNER_SLUGS.get(pool_id)
+    if slug:
+        urls.append(f"{CEP_BANNER_REMOTE}/{slug}.webp")
+    urls.append(f"{IVAQAIS_BANNER_REMOTE}/{pool_id}.webp")
+    return urls
+
+
 # ─── 肖像同步 ────────────────────────────────────────────────────
 
 def sync_missing_portraits(client: httpx.Client, table: dict):
@@ -209,34 +228,22 @@ def sync_missing_portraits(client: httpx.Client, table: dict):
     downloaded = 0
 
     for item_id in sorted(missing_chars):
-        url = f"{CHAR_PORTRAIT_REMOTE}/icon_{item_id}.png"
-        target = CHAR_PORTRAIT_DIR / f"{item_id}.png"
-        try:
-            resp = client.get(url, follow_redirects=True, timeout=TIMEOUT)
-            if resp.status_code == 200:
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(resp.content)
-                print(f"  [Portrait] 下载角色 {item_id}")
-                downloaded += 1
-            else:
-                print(f"  [Portrait] 角色 {item_id} 不可用 (HTTP {resp.status_code})")
-        except Exception as e:
-            print(f"  [Portrait] 角色 {item_id} 下载失败: {e}")
+        candidates = [
+            f"{CHAR_PORTRAIT_REMOTE}/icon_{item_id}.png",
+            f"{CEP_CHARACTER_PORTRAIT_REMOTE}/{item_id}.avif",
+        ]
+        if any(download_image(client, url, CHAR_PORTRAIT_DIR / item_id) for url in candidates):
+            print(f"  [Portrait] 下载角色 {item_id}")
+            downloaded += 1
 
     for item_id in sorted(missing_weapons):
-        url = f"{WEAPON_PORTRAIT_REMOTE}/{item_id}.png"
-        target = WEAPON_PORTRAIT_DIR / f"{item_id}.png"
-        try:
-            resp = client.get(url, follow_redirects=True, timeout=TIMEOUT)
-            if resp.status_code == 200:
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(resp.content)
-                print(f"  [Portrait] 下载武器 {item_id}")
-                downloaded += 1
-            else:
-                print(f"  [Portrait] 武器 {item_id} 不可用 (HTTP {resp.status_code})")
-        except Exception as e:
-            print(f"  [Portrait] 武器 {item_id} 下载失败: {e}")
+        candidates = [
+            f"{WEAPON_PORTRAIT_REMOTE}/{item_id}.png",
+            f"{CEP_WEAPON_PORTRAIT_REMOTE}/{item_id}.avif",
+        ]
+        if any(download_image(client, url, WEAPON_PORTRAIT_DIR / item_id) for url in candidates):
+            print(f"  [Portrait] 下载武器 {item_id}")
+            downloaded += 1
 
     if downloaded > 0:
         print(f"  本次下载肖像: {downloaded}")
@@ -329,14 +336,26 @@ def main():
                 new_count += 1
                 print(f"  [API] {pool_id}: {pool_data.get('pool_name', '')}")
 
-                # 下载横幅
+                # 下载横幅（官方无图时回退第三方镜像）
                 up6_image = pool_data.get("up6_image", "") or ""
                 gacha_type = pool_data.get("pool_gacha_type", "")
-                if up6_image:
-                    if gacha_type == "char":
-                        download_image(client, up6_image, BANNER_CHAR_DIR / pool_id)
-                    elif gacha_type == "weapon":
-                        download_image(client, up6_image, BANNER_WEAPON_DIR / pool_id)
+                if gacha_type == "char":
+                    banner_dir = BANNER_CHAR_DIR
+                elif gacha_type == "weapon":
+                    banner_dir = BANNER_WEAPON_DIR
+                else:
+                    banner_dir = None
+                if banner_dir is not None:
+                    if up6_image:
+                        download_image(client, up6_image, banner_dir / pool_id)
+                    has_banner = any(
+                        (banner_dir / f"{pool_id}{ext}").exists() for ext in (".png", ".webp", ".jpg")
+                    )
+                    if not has_banner:
+                        for fallback_url in banner_fallback_urls(pool_id):
+                            if download_image(client, fallback_url, banner_dir / pool_id):
+                                print(f"  [Banner] 后备源下载 {pool_id}")
+                                break
 
                 # 轮换图已移除，不再下载
             else:
