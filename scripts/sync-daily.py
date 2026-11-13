@@ -6,7 +6,8 @@
 # 4. 合并到 GachaPoolTable.json
 # 5. 检测缺失肖像
 
-import json, os, re, sys, hashlib, shutil, tempfile
+import json
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -18,6 +19,7 @@ PUBLIC_DATA_DIR = PUBLIC_DIR / "data"
 PUBLIC_IMG_DIR = PUBLIC_DIR / "images"
 RAW_TABLECFG_DIR = BASE_DIR / "raw" / "TableCfg"
 HISTORICAL_TABLE_PATH = PUBLIC_DATA_DIR / "GachaPoolTable.json"
+PENDING_POOLS_PATH = PUBLIC_DATA_DIR / "pending-pools.json"
 
 TABLECFG_REMOTE_BASE = "https://lulush.microgg.cn/BeyondUID/TableCfg"
 CONTENT_API = "https://ef-webview.hypergryph.com/api/content"
@@ -36,12 +38,14 @@ CEP_BANNER_REMOTE = "https://raw.githubusercontent.com/cmyyx/cep/main/public/ima
 CEP_BANNER_SLUGS = {"joint_1_2_2": "huiguagnqingdian"}
 CEP_CHARACTER_PORTRAIT_REMOTE = "https://raw.githubusercontent.com/cmyyx/cep/main/public/images/characters"
 CEP_WEAPON_PORTRAIT_REMOTE = "https://raw.githubusercontent.com/cmyyx/cep/main/public/images/weapon"
+CEP_WEAPON_PORTRAIT_INDEX = "https://api.github.com/repos/cmyyx/cep/contents/public/images/weapon"
+ENDFIELDDATA_WEAPON_TABLE = "https://raw.githubusercontent.com/rmxlinux/EndfieldData/main/TableCfg/GachaWeaponPoolTable.json"
+ENDFIELDDATA_CHAR_TABLE = "https://raw.githubusercontent.com/rmxlinux/EndfieldData/main/TableCfg/GachaCharPoolTable.json"
+ENDFIELDDATA_COMMITS = "https://api.github.com/repos/rmxlinux/EndfieldData/commits?path=TableCfg/GachaWeaponPoolTable.json&per_page=1"
+AKEDATA_MANIFEST = "https://data.akedata.wiki/manifest.json"
 
 TIMEOUT = 30.0
-MAX_CONCURRENCY = 5
 ALLOWED_CHAR_POOL_TYPES = {"Special", "Joint", "Rerun", "0", 0}
-CANDIDATE_POOL_TYPES = ("special", "weponbox")
-CANDIDATE_POOL_COUNT = 3
 
 
 def pool_kind_for(pool_id: str, pool_data: dict, char_table: dict, weapon_table: dict) -> str:
@@ -115,30 +119,92 @@ def collect_pool_ids(char_table: dict, weapon_table: dict) -> list[str]:
     return pool_ids
 
 
-def collect_candidate_pool_ids(known_pool_ids: list[str]) -> list[str]:
-    pool_versions = []
-    for pool_id in known_pool_ids:
-        match = re.fullmatch(r"(?:special|weponbox)_(\d+)_(\d+)_(\d+)", pool_id)
-        if match:
-            pool_versions.append(tuple(map(int, match.groups())))
+def fetch_json(client: httpx.Client, url: str):
+    resp = client.get(url, follow_redirects=True, timeout=TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
 
-    if not pool_versions:
-        return []
 
-    major, minor, slot = max(pool_versions)
-    candidate_versions = []
-    for _ in range(CANDIDATE_POOL_COUNT):
-        slot += 1
-        if slot > 3:
-            minor += 1
-            slot = 1
-        candidate_versions.append((major, minor, slot))
+def load_supplemental_tables(client: httpx.Client) -> list[tuple[str, str, str, str, dict]]:
+    """Load public TableCfg snapshots as discovery sources, newest first."""
+    sources: list[tuple[str, str, str, str, dict]] = []
+    try:
+        commit = fetch_json(client, ENDFIELDDATA_COMMITS)[0]
+        updated_at = commit["commit"]["author"]["date"]
+        for table_name, url in (
+            ("weapon", ENDFIELDDATA_WEAPON_TABLE),
+            ("char", ENDFIELDDATA_CHAR_TABLE),
+        ):
+            table = fetch_json(client, url)
+            sources.append((updated_at, "rmxlinux/EndfieldData", table_name, "main", table))
+        print(f"  [Source] EndfieldData TableCfg @ {updated_at}")
+    except Exception as e:
+        print(f"  [Source] EndfieldData unavailable: {e}")
 
-    return [
-        f"{pool_type}_{candidate_major}_{candidate_minor}_{candidate_slot}"
-        for candidate_major, candidate_minor, candidate_slot in candidate_versions
-        for pool_type in CANDIDATE_POOL_TYPES
-    ]
+    try:
+        manifest = fetch_json(client, AKEDATA_MANIFEST)
+        version = next(row for row in manifest["versions"] if row["id"] == manifest["latest"])
+        updated_at = version.get("publishedAt") or manifest.get("updatedAt") or ""
+        for table_name, filename in (
+            ("weapon", "GachaWeaponPoolTable.json"),
+            ("char", "GachaCharPoolTable.json"),
+        ):
+            url = f"https://data.akedata.wiki/{version['tableCfgPath']}/{filename}"
+            table = fetch_json(client, url)
+            sources.append((updated_at, "NagiYume/AKEDatabase", table_name, version["id"], table))
+        print(f"  [Source] AKEData {version['id']} @ {updated_at}")
+    except Exception as e:
+        print(f"  [Source] AKEData unavailable: {e}")
+
+    return sorted(sources, key=lambda source: source[0], reverse=True)
+
+
+def make_pending_pool(
+    pool_id: str,
+    config: dict,
+    gacha_type: str,
+    source: str,
+    source_version: str,
+    updated_at: str,
+) -> dict:
+    """Keep the source config intact without presenting it as official pool content."""
+    return {
+        "pool_id": pool_id,
+        "pool_gacha_type": gacha_type,
+        "data_status": "pending_official",
+        "data_source": source,
+        "source_version": source_version,
+        "source_updated_at": updated_at,
+        "tablecfg": config,
+    }
+
+
+def merge_supplemental_tables(
+    sources: list[tuple[str, str, str, str, dict]],
+) -> tuple[dict[str, tuple[dict, str, str, str, str]], dict, dict]:
+    """Choose the newest config per pool and keep character/weapon maps for classification."""
+    configs: dict[str, tuple[dict, str, str, str, str]] = {}
+    char_table: dict = {}
+    weapon_table: dict = {}
+
+    for updated_at, source, table_kind, source_version, table in sources:
+        target_table = char_table if table_kind == "char" else weapon_table
+        for pool_id, config in table.items():
+            target_table[pool_id] = config
+            current = configs.get(pool_id)
+            if current is None or updated_at > current[1]:
+                configs[pool_id] = (config, updated_at, source, table_kind, source_version)
+            elif updated_at == current[1] and source != current[2]:
+                merged = {**current[0], **config}
+                configs[pool_id] = (
+                    merged,
+                    updated_at,
+                    f"{current[2]},{source}",
+                    table_kind,
+                    f"{current[4]},{source_version}",
+                )
+
+    return configs, char_table, weapon_table
 
 
 # ─── 从官方 API 获取单个池内容 ────────────────────────────────────
@@ -177,11 +243,36 @@ def download_image(client: httpx.Client, url: str, target_path: Path) -> bool:
         return False
 
 
+def sync_pool_banner(client: httpx.Client, pool_id: str, pool_data: dict, banner_dir: Path) -> bool:
+    """Download the official banner first, then try configured mirrors."""
+    image_url = pool_data.get("up6_image", "") or ""
+    if image_url and download_image(client, image_url, banner_dir / pool_id):
+        return True
+
+    has_banner = any(
+        (banner_dir / f"{pool_id}{ext}").exists() for ext in (".png", ".webp", ".jpg")
+    )
+    if has_banner:
+        return True
+
+    for fallback_url in banner_fallback_urls(pool_id):
+        if download_image(client, fallback_url, banner_dir / pool_id):
+            print(f"  [Banner] mirror download {pool_id}")
+            return True
+    return False
+
+
 # ─── 合并到历史池表 ──────────────────────────────────────────────
 
 def load_historical_table() -> dict:
     if HISTORICAL_TABLE_PATH.exists():
         return json.loads(HISTORICAL_TABLE_PATH.read_text(encoding="utf-8"))
+    return {}
+
+
+def load_pending_pools() -> dict:
+    if PENDING_POOLS_PATH.exists():
+        return json.loads(PENDING_POOLS_PATH.read_text(encoding="utf-8"))
     return {}
 
 
@@ -191,6 +282,25 @@ def save_historical_table(table: dict):
         json.dumps(table, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def save_pending_pools(table: dict):
+    PENDING_POOLS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PENDING_POOLS_PATH.write_text(
+        json.dumps(table, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def persist_pending_pools(table: dict) -> bool:
+    """Write pending candidates only when changed; remove the file when empty."""
+    if table == load_pending_pools():
+        return False
+    if table:
+        save_pending_pools(table)
+    elif PENDING_POOLS_PATH.exists():
+        PENDING_POOLS_PATH.unlink()
+    return True
 
 
 # ─── 图片后备源 ──────────────────────────────────────────────────
@@ -219,6 +329,42 @@ def sync_missing_portraits(client: httpx.Client, table: dict):
                 known_char_ids.add(item_id)
             elif gacha_type == "weapon":
                 known_weapon_ids.add(item_id)
+
+    _, weapon_table = load_tablecfg()
+    for pool_data in weapon_table.values():
+        known_weapon_ids.update(
+            item_id for item_id in pool_data.get("upWeaponIds", []) if item_id
+        )
+
+    try:
+        resp = client.get(
+            CEP_WEAPON_PORTRAIT_INDEX,
+            headers={"User-Agent": "Endfield-Gacha-Assets-sync"},
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        candidate_weapons = set()
+        for entry in resp.json():
+            filename = entry.get("name", "")
+            match = re.fullmatch(r"(wpn_[a-z]+_\d+)\.avif", filename)
+            if match:
+                candidate_weapons.add(match.group(1))
+
+        max_known_number: dict[str, int] = {}
+        for item_id in known_weapon_ids:
+            match = re.fullmatch(r"(wpn_[a-z]+)_(\d+)", item_id)
+            if match:
+                weapon_type, number = match.groups()
+                max_known_number[weapon_type] = max(
+                    max_known_number.get(weapon_type, 0), int(number)
+                )
+
+        for item_id in candidate_weapons:
+            match = re.fullmatch(r"(wpn_[a-z]+)_(\d+)", item_id)
+            if match and int(match.group(2)) > max_known_number.get(match.group(1), 0):
+                known_weapon_ids.add(item_id)
+    except Exception as e:
+        print(f"  [Portrait] 无法读取 CEP 武器清单: {e}")
 
     existing_chars = {f.stem for f in CHAR_PORTRAIT_DIR.glob("*") if f.suffix.lower() in (".png", ".webp", ".jpg")}
     existing_weapons = {f.stem for f in WEAPON_PORTRAIT_DIR.glob("*") if f.suffix.lower() in (".png", ".webp", ".jpg")}
@@ -295,11 +441,22 @@ def main():
     # 读取本地 TableCfg
     print("\n[2/5] 读取 TableCfg...")
     char_table, weapon_table = load_tablecfg()
-    pool_ids = collect_pool_ids(char_table, weapon_table)
+    with httpx.Client() as client:
+        supplemental_tables = load_supplemental_tables(client)
+
+    supplemental_configs, supplemental_chars, supplemental_weapons = merge_supplemental_tables(
+        supplemental_tables
+    )
+    pool_ids = list(dict.fromkeys(
+        collect_pool_ids(char_table, weapon_table)
+        + collect_pool_ids(supplemental_chars, supplemental_weapons)
+        + list(supplemental_configs)
+    ))
     tablecfg_pool_count = len(pool_ids)
 
-    # 加载现有历史池表
+    # Load official pool records separately from unconfirmed source candidates.
     historical = load_historical_table()
+    pending_pools = load_pending_pools()
     pool_kind_changed = False
     for pool_id, pool_data in historical.items():
         pool_kind = pool_kind_for(pool_id, pool_data, char_table, weapon_table)
@@ -307,11 +464,8 @@ def main():
             pool_data["pool_kind"] = pool_kind
             pool_kind_changed = True
 
-    # TableCfg 镜像可能晚于官方 API；仅探测最高池之后的三个常见卡池 ID 作为兜底。
-    candidate_pool_ids = collect_candidate_pool_ids(pool_ids + list(historical))
-    pool_ids.extend(pool_id for pool_id in candidate_pool_ids if pool_id not in pool_ids)
     print(f"  TableCfg: {tablecfg_pool_count} 个 pool_id")
-    print(f"  官方 API 候选探测: {len(candidate_pool_ids)} 个 pool_id")
+    print(f"  待查池 ID: {len(pool_ids)} 个")
 
     # 遍历 pool_id 采集数据
     print("\n[3/5] 采集卡池数据...")
@@ -320,8 +474,7 @@ def main():
 
     with httpx.Client() as client:
         for pool_id in pool_ids:
-            # 已经是历史数据
-            if pool_id in historical and historical[pool_id].get("up6_image"):
+            if pool_id in historical and historical[pool_id].get("data_status") != "pending_official":
                 skip_count += 1
                 continue
 
@@ -333,33 +486,35 @@ def main():
                     pool_kind_changed = True
                 pool_data["pool_kind"] = pool_kind
                 historical[pool_id] = pool_data
+                pending_pools.pop(pool_id, None)
                 new_count += 1
                 print(f"  [API] {pool_id}: {pool_data.get('pool_name', '')}")
 
-                # 下载横幅（官方无图时回退第三方镜像）
-                up6_image = pool_data.get("up6_image", "") or ""
                 gacha_type = pool_data.get("pool_gacha_type", "")
-                if gacha_type == "char":
-                    banner_dir = BANNER_CHAR_DIR
-                elif gacha_type == "weapon":
-                    banner_dir = BANNER_WEAPON_DIR
-                else:
-                    banner_dir = None
-                if banner_dir is not None:
-                    if up6_image:
-                        download_image(client, up6_image, banner_dir / pool_id)
-                    has_banner = any(
-                        (banner_dir / f"{pool_id}{ext}").exists() for ext in (".png", ".webp", ".jpg")
-                    )
-                    if not has_banner:
-                        for fallback_url in banner_fallback_urls(pool_id):
-                            if download_image(client, fallback_url, banner_dir / pool_id):
-                                print(f"  [Banner] 后备源下载 {pool_id}")
-                                break
+                banner_dir = {
+                    "char": BANNER_CHAR_DIR,
+                    "weapon": BANNER_WEAPON_DIR,
+                }.get(gacha_type)
+                if banner_dir:
+                    sync_pool_banner(client, pool_id, pool_data, banner_dir)
 
                 # 轮换图已移除，不再下载
             else:
-                print(f"  [跳过] {pool_id}: API 不可用")
+                supplemental = supplemental_configs.get(pool_id)
+                if supplemental and pool_id not in historical:
+                    config, updated_at, source, table_kind, source_version = supplemental
+                    gacha_type = "weapon" if table_kind == "weapon" else "char"
+                    pending = make_pending_pool(
+                        pool_id, config, gacha_type, source, source_version, updated_at
+                    )
+                    pending_pools[pool_id] = pending
+                    if gacha_type == "weapon" and re.fullmatch(
+                        r"(?:weponbox|weaponbox)_\d+_\d+_\d+", pool_id
+                    ):
+                        sync_pool_banner(client, pool_id, {}, BANNER_WEAPON_DIR)
+                    print(f"  [Pending] {pool_id}: {source}, waiting for official API")
+                else:
+                    print(f"  [跳过] {pool_id}: API 不可用")
 
     print(f"\n  新增: {new_count}, 已存在: {skip_count}")
 
@@ -369,6 +524,7 @@ def main():
         save_historical_table(historical)
     else:
         print("  卡池数据未变化")
+    pending_changed = persist_pending_pools(pending_pools)
 
     # 检测并下载缺失肖像
     print("\n[5/5] 同步肖像...")
@@ -376,7 +532,7 @@ def main():
         portrait_count = sync_missing_portraits(client, historical)
 
     # 只在数据或资源发生变化时更新时间戳，避免每日产生无意义的提交。
-    if tablecfg_changed or new_count or portrait_count:
+    if tablecfg_changed or new_count or pending_changed or portrait_count:
         generate_index(historical)
     else:
         print("\n  [Index] 无数据变化，未更新")
