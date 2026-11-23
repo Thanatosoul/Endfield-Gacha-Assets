@@ -1,6 +1,6 @@
 {
-  "version": "20261113",
-  "updated_at": "2026-11-13T08:50:46.412594+00:00",
+  "version": "20261123",
+  "updated_at": "2026-11-23T09:54:23.147735+00:00",
   "stats": {
     "total_pools": 40,
     "char_pools": 18,
@@ -8,6 +8,6 @@
     "banner_char_images": 18,
     "banner_weapon_images": 22,
     "char_portraits": 32,
-    "weapon_portraits": 71
+    "weapon_portraits": 74
   }
 }
