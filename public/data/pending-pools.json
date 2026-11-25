@@ -1,0 +1,90 @@
+{
+  "rerun_wpn_wulfa": {
+    "pool_id": "rerun_wpn_wulfa",
+    "pool_gacha_type": "weapon",
+    "data_status": "pending_official",
+    "data_source": "NagiYume/AKEDatabase",
+    "source_version": "1.7.2@12026241-3",
+    "source_updated_at": "2026-11-25T06:12:48+08:00",
+    "tablecfg": {
+      "clientTopTimeId": "time_weaponbox_1_7_3",
+      "doublePoolNodeUIPrefab": "",
+      "finalIndex": 0,
+      "gachaPoolVersion": 1,
+      "id": "rerun_wpn_wulfa",
+      "index": 0,
+      "intervalAutoRewardIds": [
+        "reward_payshop_item_case_wpn_selfselect_gahca_wulfa",
+        "reward_payshop_wpn_sword_0022"
+      ],
+      "loopRewardShowTag": {
+        "id": 1960390298746730128,
+        "text": ""
+      },
+      "loopRewardShowTitle": {
+        "id": -7429446544554477565,
+        "text": ""
+      },
+      "name": {
+        "id": 3996879093647198158,
+        "text": ""
+      },
+      "poolNodeUIPrefab": "ShopWeaponPoolNodeLimitedAlter_1_1_2",
+      "smallPoolIcon": "icon_shop_weaponbox_small_1_1_2",
+      "smallPoolIconFar": "",
+      "sortId": 20,
+      "ticketGachaTenLt": "",
+      "type": 1,
+      "upWeaponDoublePoolIcon": "",
+      "upWeaponIcon": "",
+      "upWeaponIds": [
+        "wpn_sword_0022"
+      ]
+    }
+  },
+  "rerun_chr_wulfa": {
+    "pool_id": "rerun_chr_wulfa",
+    "pool_gacha_type": "char",
+    "data_status": "pending_official",
+    "data_source": "NagiYume/AKEDatabase",
+    "source_version": "1.7.2@12026241-3",
+    "source_updated_at": "2026-11-25T06:12:48+08:00",
+    "tablecfg": {
+      "bonusRewardIdEveryPull": "",
+      "color": "c70b2a",
+      "cumulativeRewardIds": [],
+      "gachaPoolVersion": 1,
+      "id": "rerun_chr_wulfa",
+      "intervalAutoRewardIds": [
+        "reward_charpotentialup_chr_0028_wulfa"
+      ],
+      "mailBannerImage": "gachapool_mail_banner_1_1_2",
+      "name": {
+        "id": 6453954778714332046,
+        "text": ""
+      },
+      "nameImage": "gachapool_titleicon_1_7_3",
+      "onceRewardId": "",
+      "onceRewardId2": "",
+      "sortId": 9997,
+      "tabGradientColor": "ea0c1c",
+      "tabImage": "gachapool_type_1_1_2",
+      "testimonialRewardItemId": "",
+      "textColor": "FFFFFF",
+      "ticketGachaSingleLt": "",
+      "ticketGachaTenLt": "",
+      "trialActivityJumpId": "",
+      "type": 4,
+      "uiPrefab": "GachaPoolNodeRerun_1_7_3",
+      "upCharIds": [
+        "chr_0028_wulfa"
+      ],
+      "videoAudioKey": "Au_UI_Menu_GachaLimitedVideo_C",
+      "videoDesc": {
+        "id": -4366295112176141917,
+        "text": ""
+      },
+      "videoPath": "ui_gacha_char_preview_3"
+    }
+  }
+}
