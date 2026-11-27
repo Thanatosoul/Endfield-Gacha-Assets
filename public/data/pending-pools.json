@@ -4,8 +4,8 @@
     "pool_gacha_type": "weapon",
     "data_status": "pending_official",
     "data_source": "NagiYume/AKEDatabase",
-    "source_version": "1.7.2@12153128-4",
-    "source_updated_at": "2026-11-26T10:03:03+08:00",
+    "source_version": "1.7.2@12190603-5",
+    "source_updated_at": "2026-11-27T10:03:21+08:00",
     "tablecfg": {
       "clientTopTimeId": "time_weaponbox_1_7_3",
       "doublePoolNodeUIPrefab": "",
@@ -47,8 +47,8 @@
     "pool_gacha_type": "char",
     "data_status": "pending_official",
     "data_source": "NagiYume/AKEDatabase",
-    "source_version": "1.7.2@12153128-4",
-    "source_updated_at": "2026-11-26T10:03:03+08:00",
+    "source_version": "1.7.2@12190603-5",
+    "source_updated_at": "2026-11-27T10:03:21+08:00",
     "tablecfg": {
       "bonusRewardIdEveryPull": "",
       "color": "c70b2a",
